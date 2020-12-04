@@ -4,6 +4,7 @@
 import com.atlassian.jira.rest.client.api.JiraRestClient;
 import com.atlassian.jira.rest.client.api.domain.Issue;
 import com.atlassian.jira.rest.client.api.domain.SearchResult;
+import com.atlassian.jira.rest.client.api.domain.User;
 import com.atlassian.jira.rest.client.api.domain.Version;
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory;
 import org.json.JSONArray;
@@ -28,10 +29,8 @@ import javax.mail.Session;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Date;
 import java.util.Properties;
 
 @Command(name = "run", mixinStandardHelpOptions = true, version = "run 0.1",
@@ -47,11 +46,14 @@ class run implements Callable<Integer> {
     @CommandLine.Option(names = {"-p", "--password"}, description = "The password to use when connecting to the JIRA server", required = true)
     private String jiraPassword;
 
-    @CommandLine.Option(names = {"-c", "--config"}, description = "The config file to load the query to version mappings from", required = true)
-    private String pathToConfigFile;
+    private static final String SMTP_SERVER = "smtp.corp.redhat.com";
+    private static final String USERNAME = "";
+    private static final String PASSWORD = "";
+    private static final String EMAIL_FROM = "probinso@redhat.com";
+    private static final String EMAIL_TO = "probinso@redhat.com";
+    private static final String EMAIL_SUBJECT = "[JIRA-NAG] Please review your Quarkus JIRA issues";
 
-    private static final String JIRA_PROJECT_CODE = "QUARKUS";
-    private static final String JIRA_QUERY = "project = " + JIRA_PROJECT_CODE + " AND assignee = ssitani and status in ('to do', 'Analysis in Progress', 'Dev In Progress')";
+    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\", \"Analysis in Progress\", \"Dev In Progress\") AND fixVersion is not EMPTY AND fixVersion != later";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
@@ -64,30 +66,50 @@ class run implements Callable<Integer> {
         /*
             Initialise
          */
-        //Map<String, String> configuration = loadQueryToVersionMap(pathToConfigFile);
         final JiraRestClient restClient = new AsynchronousJiraRestClientFactory().createWithBasicHttpAuthentication(new URI(jiraServerURL), jiraUsername, jiraPassword);
 
-        System.out.println("Running: " + JIRA_QUERY);
-        SearchResult searchResults = restClient.getSearchClient().searchJql(JIRA_QUERY).claim();
-        for (Issue issue : searchResults.getIssues()) {
-            System.out.println(issue.getSummary());
-        }
+        /*
+            Find users with issues
+         */
+        Set<User> users = getUsersWithIssues(restClient);
 
-        sendMail(createEmailBody("Paul", searchResults.getIssues()));
+        /*
+            Email each user with their list of issues
+         */
+        for (User user : users) {
+
+            String jiraQueryPerUser = JIRA_QUERY_ALL + " AND assignee = '" + user.getName() + "'";
+            System.out.println("Running: " + jiraQueryPerUser);
+            SearchResult searchResultsPerUser = restClient.getSearchClient().searchJql(jiraQueryPerUser).claim();
+            sendMail(createEmailBody(user, searchResultsPerUser.getIssues()));
+        }
 
         return 0;
     }
 
-    public String createEmailBody(String name, Iterable<Issue> issues) {
+    private Set<User> getUsersWithIssues(JiraRestClient restClient) {
+        System.out.println("Running: " + JIRA_QUERY_ALL);
+        SearchResult searchResultsAll = restClient.getSearchClient().searchJql(JIRA_QUERY_ALL).claim();
+        Set<User> users = new HashSet<>();
+        for (Issue issue : searchResultsAll.getIssues()) {
+            if (issue.getAssignee() != null) {
+                User user = restClient.getUserClient().getUser(issue.getAssignee().getName()).claim();
+                users.add(user);
+            }
+        }
+        return users;
+    }
 
-        String body = "<p>Hi " + name + ",</p>" +
-                "<p>You have the following issues assigned to you on an upcoming release. Please check the status is correct and update if needed.</p>";
+    public String createEmailBody(User user, Iterable<Issue> issues) {
 
-        body += "<table>";
+        System.out.println("Sending email for user: " + user.getDisplayName());
+
+        String body = "<p>Hi " + user.getDisplayName() + ",</p>" +
+                "<p>You have the following issues assigned to you on an upcoming release. Please check the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
+
+        body += "<table border='1' style='border-collapse:collapse'>";
         body += "<tr><th>Issue</th><th>Summary</th><th>Fix Versions</th><th>Status</th></tr>";
         for (Issue issue : issues) {
-            System.out.println(issue + "\n\n\n");
-
             String fixVersions ="";
             for (Version version : issue.getFixVersions()) {
                 fixVersions += version.getName() + " ";
@@ -101,24 +123,20 @@ class run implements Callable<Integer> {
         }
         body += "</table>";
 
-        body += "<p>The states are documented here. But to summarise the important states for engineering are...</p>";
+        body += "<p>The states are documented here: <a href='https://docs.google.com/document/d/1s5pzo73HS9QYF1oQjv8ff-ATAK-u8dU_iL3qTe859xA/edit#heading=h.17kii7ptsosf'>Quarkus Product Process | JIRA Workflow</a>.";
+        body += "<p>To summarise the states from an engineering perspective...";
+        body += "</p>";
+        body += "<br><b>To Do:</b> New issues yet to be worked on</br>";
+        body += "<br><b>Analysis In Progress:</b> The issue is being discussed/planned/analysed before actual development begins\n";
+        body += "<br><b>Dev In Progress:</b> Coding on the issue is in progress (Developer moves the issue here when coding has begun)\n";
+        body += "<br><b>Implemented:</b> The PR for the code is merged and out of the Developer's hands (Developer moves issue to here when the PR is merged)</br>";
+        body += "<br><b>Resolved:</b> The issue is available in a release (Productization moves issues from implemented to here during release)</br>";
+        body += "</p>";
         body += "<p>Thanks,</p>";
         body += "<p>Paul</p>";
 
         return body;
     }
-
-    // for example, smtp.mailgun.org
-    private static final String SMTP_SERVER = "smtp.corp.redhat.com";
-    private static final String USERNAME = "";
-    private static final String PASSWORD = "";
-
-    private static final String EMAIL_FROM = "probinso@redhat.com";
-    private static final String EMAIL_TO = "probinso@redhat.com";
-    private static final String EMAIL_TO_CC = "";
-
-    private static final String EMAIL_SUBJECT = "Test Send Email via SMTP (HTML)";
-    //private static final String EMAIL_TEXT = "<h1>Hello Java Mail \n ABC123</h1>";
 
     public static void sendMail(String body) {
 
