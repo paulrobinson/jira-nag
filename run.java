@@ -50,10 +50,10 @@ class run implements Callable<Integer> {
     private static final String USERNAME = "";
     private static final String PASSWORD = "";
     private static final String EMAIL_FROM = "probinso@redhat.com";
-    private static final String EMAIL_TO = "probinso@redhat.com";
-    private static final String EMAIL_SUBJECT = "[JIRA-NAG] Please review your Quarkus JIRA issues";
+    private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\", \"Analysis in Progress\", \"Dev In Progress\") AND fixVersion is not EMPTY AND fixVersion != later";
+    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\") AND fixVersion = Cannonball.GA";
+    //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\", \"Analysis in Progress\", \"Dev In Progress\") AND fixVersion is not EMPTY AND fixVersion != later";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
@@ -81,7 +81,8 @@ class run implements Callable<Integer> {
             String jiraQueryPerUser = JIRA_QUERY_ALL + " AND assignee = '" + user.getName() + "'";
             System.out.println("Running: " + jiraQueryPerUser);
             SearchResult searchResultsPerUser = restClient.getSearchClient().searchJql(jiraQueryPerUser).claim();
-            sendMail(createEmailBody(user, searchResultsPerUser.getIssues()));
+            sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), "probinso@redhat.com");
+            //sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), user.getEmailAddress());
         }
 
         return 0;
@@ -105,7 +106,9 @@ class run implements Callable<Integer> {
         System.out.println("Sending email for user: " + user.getDisplayName());
 
         String body = "<p>Hi " + user.getDisplayName() + ",</p>" +
-                "<p>You have the following issues assigned to you on an upcoming release. Please check the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
+                "<p>You have the following issues assigned to you on the upcoming Red Hat Build of Quarkus release.</p>" +
+                "<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state.</p>" +
+                "<p>The following issues are assigned to you and in the 'To Do' state. Please check that the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
 
         body += "<table border='1' style='border-collapse:collapse'>";
         body += "<tr><th>Issue</th><th>Summary</th><th>Fix Versions</th><th>Status</th></tr>";
@@ -138,7 +141,7 @@ class run implements Callable<Integer> {
         return body;
     }
 
-    public static void sendMail(String body) {
+    public static void sendMail(String body, String to) {
 
         Properties prop = System.getProperties();
         prop.put("mail.smtp.auth", "false");
@@ -151,7 +154,7 @@ class run implements Callable<Integer> {
             msg.setFrom(new InternetAddress(EMAIL_FROM));
 
             msg.setRecipients(Message.RecipientType.TO,
-                    InternetAddress.parse(EMAIL_TO, false));
+                    InternetAddress.parse(to, false));
 
             msg.setSubject(EMAIL_SUBJECT);
 
