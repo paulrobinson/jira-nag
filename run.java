@@ -1,7 +1,9 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //REPOS mavencentral,atlassian=https://packages.atlassian.com/maven/repository/public
-//DEPS info.picocli:picocli:4.2.0, com.atlassian.jira:jira-rest-java-client-api:3.0.0, com.atlassian.jira:jira-rest-java-client-core:3.0.0, org.json:json:20200518, com.konghq:unirest-java:3.7.04, com.sun.mail:javax.mail:1.6.2
+//DEPS info.picocli:picocli:4.2.0, com.atlassian.jira:jira-rest-java-client-app:5.2.2, com.atlassian.jira:jira-rest-java-client-api:5.2.2, com.atlassian.jira:jira-rest-java-client-core:5.2.2, org.json:json:20200518, com.konghq:unirest-java:3.7.04, com.sun.mail:javax.mail:1.6.2
 
+import com.atlassian.httpclient.api.Request;
+import com.atlassian.jira.rest.client.api.AuthenticationHandler;
 import com.atlassian.jira.rest.client.api.JiraRestClient;
 import com.atlassian.jira.rest.client.api.domain.Issue;
 import com.atlassian.jira.rest.client.api.domain.SearchResult;
@@ -38,14 +40,11 @@ import java.util.Properties;
         description = "GitHub to Jira issue replicator")
 class run implements Callable<Integer> {
 
-    @CommandLine.Option(names = {"-j", "--jira-server"}, description = "The JIRA server to connect to", required = true)
+    @CommandLine.Option(names = {"-s", "--jira-server"}, description = "The JIRA server to connect to", required = true)
     private String jiraServerURL;
 
-    @CommandLine.Option(names = {"-u", "--username"}, description = "The username to use when connecting to the JIRA server", required = true)
-    private String jiraUsername;
-
-    @CommandLine.Option(names = {"-p", "--password"}, description = "The password to use when connecting to the JIRA server", required = true)
-    private String jiraPassword;
+    @CommandLine.Option(names = {"-t", "--jira-token"}, description = "The Personal Access Token for authenticating with the JIRA server", required = true)
+    private String jiraToken;
 
     private static final String SMTP_SERVER = "smtp.corp.redhat.com";
     private static final String USERNAME = "";
@@ -53,7 +52,9 @@ class run implements Callable<Integer> {
     private static final String EMAIL_FROM = "probinso@redhat.com";
     private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"To Do\", \"Dev In Progress\", \"Ready for Dev\", \"Analysis in Progress\") AND fixVersion = Dragonball.GA";
+    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"To Do\", \"Dev In Progress\", \"Ready for Dev\", \"Analysis in Progress\") AND fixVersion = Elektra.GA";
+    //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"To Do\", \"Dev In Progress\", \"Ready for Dev\", \"Analysis in Progress\") AND fixVersion = Elektra.GA";
+    //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"To Do\", \"Dev In Progress\", \"Ready for Dev\", \"Analysis in Progress\") AND fixVersion = Dragonball.GA";
     //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\") AND fixVersion = Cannonball.GA";
     //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\", \"Analysis in Progress\", \"Dev In Progress\") AND fixVersion is not EMPTY AND fixVersion != later";
 
@@ -68,7 +69,7 @@ class run implements Callable<Integer> {
         /*
             Initialise
          */
-        final JiraRestClient restClient = new AsynchronousJiraRestClientFactory().createWithBasicHttpAuthentication(new URI(jiraServerURL), jiraUsername, jiraPassword);
+        final JiraRestClient restClient = new AsynchronousJiraRestClientFactory().create(new URI(jiraServerURL), new BearerHttpAuthenticationHandler(jiraToken));
 
         /*
             Find users with issues
@@ -110,9 +111,9 @@ class run implements Callable<Integer> {
         String body = "<p>Hi " + user.getDisplayName() + ",</p>" +
                 "<p>You have the following issues assigned to you on the upcoming Red Hat Build of Quarkus release.</p>" +
                 //"<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state.</p>" +
-                "<p>JIRA Issues that won't have their fix merged into Quarkus upstream by 17th August (ready for the Quarkus 2.2.CR1 release) should be moved to the 'Later.GA' Fix Version in JIRA. " +
+                "<p>JIRA Issues that won't have their fix merged into Quarkus upstream TODAY (ready for the Quarkus 2.2.CR1 release) should be moved to the 'Later.GA' Fix Version in JIRA." +
                 "Please mention Thomas Qvarnström and I, in a comment on the issue, if you think deferring it would cause significant impact. " +
-                "<b>NOTE:</b> Quarkus 2.2.Final is a hardening release, so only bug fixes and other critical stabilization fixes will be accepted. Other changes to well isolated extensions may also be accepted as long as they don't risk the stability of the release.</p>" +
+                //"<b>NOTE:</b> Quarkus 2.2.Final is a hardening release, so only bug fixes and other critical stabilization fixes will be accepted. Other changes to well isolated extensions may also be accepted as long as they don't risk the stability of the release.</p>" +
                 "<p>So for the following issues can you: check that the status & assignee is correct and also defer any issues to the Later.GA release if they can't make it into Quarkus Upstream 2.2.Final.</p>";
                 //"<p>The following issues are assigned to you and in the 'To Do' state. Please check that the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
 
@@ -239,4 +240,18 @@ class run implements Callable<Integer> {
         }
     }
 
+    public static class BearerHttpAuthenticationHandler implements AuthenticationHandler {
+
+        private static final String AUTHORIZATION_HEADER = "Authorization";
+        private final String token;
+
+        public BearerHttpAuthenticationHandler(final String token) {
+            this.token = token;
+        }
+
+        @Override
+        public void configure(Request.Builder builder) {
+            builder.setHeader(AUTHORIZATION_HEADER, "Bearer " + token);
+        }
+    }
 }
