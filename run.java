@@ -52,11 +52,7 @@ class run implements Callable<Integer> {
     private static final String EMAIL_FROM = "probinso@redhat.com";
     private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"To Do\", \"Dev In Progress\", \"Ready for Dev\", \"Analysis in Progress\") AND fixVersion = Elektra.GA";
-    //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"To Do\", \"Dev In Progress\", \"Ready for Dev\", \"Analysis in Progress\") AND fixVersion = Elektra.GA";
-    //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"To Do\", \"Dev In Progress\", \"Ready for Dev\", \"Analysis in Progress\") AND fixVersion = Dragonball.GA";
-    //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\") AND fixVersion = Cannonball.GA";
-    //private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in (\"to do\", \"Analysis in Progress\", \"Dev In Progress\") AND fixVersion is not EMPTY AND fixVersion != later";
+    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = 2.2.4.GA and component in ('team/eng')";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
@@ -109,12 +105,12 @@ class run implements Callable<Integer> {
         System.out.println("Sending email for user: " + user.getDisplayName());
 
         String body = "<p>Hi " + user.getDisplayName() + ",</p>" +
-                "<p>You have the following issues assigned to you on the upcoming Red Hat Build of Quarkus release.</p>" +
-                //"<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state.</p>" +
-                "<p>JIRA Issues that won't have their fix merged into Quarkus upstream TODAY (ready for the Quarkus 2.2.CR1 release) should be moved to the 'Later.GA' Fix Version in JIRA." +
+                "<p>You have the following issues assigned to you on the upcoming 2.2.4 Red Hat Build of Quarkus release.</p>" +
+                "<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state and other issues should be close to the 'Implemented' state.</p>" +
+                "<p>JIRA Issues that won't have their fix merged into Quarkus upstream (and labelled for backport) by the <B>10th December</B> should be moved to the 'Elektra.GA' or 'Later.GA' Fix Version in JIRA. " +
                 "Please mention Thomas Qvarnström and I, in a comment on the issue, if you think deferring it would cause significant impact. " +
                 //"<b>NOTE:</b> Quarkus 2.2.Final is a hardening release, so only bug fixes and other critical stabilization fixes will be accepted. Other changes to well isolated extensions may also be accepted as long as they don't risk the stability of the release.</p>" +
-                "<p>So for the following issues can you: check that the status & assignee is correct and also defer any issues to the Later.GA release if they can't make it into Quarkus Upstream 2.2.Final.</p>";
+                "<p><b>So for the following issues can you:</b> check that the status & assignee is correct and also defer any issues to the 'Elektra.GA' or 'Later.GA' release if they can't make the 10th December deadline.</p>";
                 //"<p>The following issues are assigned to you and in the 'To Do' state. Please check that the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
 
         body += "<table border='1' style='border-collapse:collapse'>";
@@ -143,7 +139,7 @@ class run implements Callable<Integer> {
         body += "<br><b>Resolved:</b> The issue is available in a release (Productization moves issues from implemented to here during release)</br>";
         body += "</p>";
         body += "<p>Thanks,</p>";
-        body += "<p>Paul</p>";
+        body += "<p>Paul (via the JIRA-Nag tool)</p>";
 
         return body;
     }
