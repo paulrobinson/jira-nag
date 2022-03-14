@@ -52,7 +52,7 @@ class run implements Callable<Integer> {
     private static final String EMAIL_FROM = "probinso@redhat.com";
     private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = 2.2.4.GA and component in ('team/eng')";
+    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = 2.7-Elektra.GA and component in ('team/eng')";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
@@ -105,12 +105,14 @@ class run implements Callable<Integer> {
         System.out.println("Sending email for user: " + user.getDisplayName());
 
         String body = "<p>Hi " + user.getDisplayName() + ",</p>" +
-                "<p>You have the following issues assigned to you on the upcoming 2.2.4 Red Hat Build of Quarkus release.</p>" +
-                "<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state and other issues should be close to the 'Implemented' state.</p>" +
-                "<p>JIRA Issues that won't have their fix merged into Quarkus upstream (and labelled for backport) by the <B>10th December</B> should be moved to the 'Elektra.GA' or 'Later.GA' Fix Version in JIRA. " +
-                "Please mention Thomas Qvarnström and I, in a comment on the issue, if you think deferring it would cause significant impact. " +
+                "<p>You have the following issues assigned to you on the upcoming 2.7.GA Red Hat Build of Quarkus release.</p>" +
+                //"<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state and other issues should be close to the 'Implemented' state.</p>" +
+                "<p>This release is approaching the final stages, so all issues requiring upstream code changes should be merged upstream by now. Otherwise, the issues will need deferring.</p>" +
+                //"<p>JIRA Issues that won't have their fix merged into Quarkus upstream (and labelled for backport) by the <B>10th December</B> should be moved to the 'Elektra.GA' or 'Later.GA' Fix Version in JIRA. " +
+                "If you think deferring would cause significant impact; please mention Thomas Qvarnström and I in a comment, on the issue, and explain the situation." +
                 //"<b>NOTE:</b> Quarkus 2.2.Final is a hardening release, so only bug fixes and other critical stabilization fixes will be accepted. Other changes to well isolated extensions may also be accepted as long as they don't risk the stability of the release.</p>" +
-                "<p><b>So for the following issues can you:</b> check that the status & assignee is correct and also defer any issues to the 'Elektra.GA' or 'Later.GA' release if they can't make the 10th December deadline.</p>";
+                "<p><b>So for the following issue, please:</b> check that the status & assignee is correct and also defer any issues to either: '2.7.next.GA' (first patch release of RHBQ 2.7), '2.y.z-Fireball.GA' (next minor release, due around October 2022) or otherwise 'Later.GA'</p>";
+                //"<p><b>So for the following issues can you:</b> check that the status & assignee is correct and also defer any issues to the 'Elektra.GA' or 'Later.GA' release if they can't make the 10th December deadline.</p>";
                 //"<p>The following issues are assigned to you and in the 'To Do' state. Please check that the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
 
         body += "<table border='1' style='border-collapse:collapse'>";
