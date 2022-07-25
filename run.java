@@ -52,7 +52,7 @@ class run implements Callable<Integer> {
     private static final String EMAIL_FROM = "probinso@redhat.com";
     private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = 2.2.4.GA and component in ('team/eng')";
+    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = Elektra.GA and component in ('team/eng')";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
@@ -80,8 +80,8 @@ class run implements Callable<Integer> {
             String jiraQueryPerUser = JIRA_QUERY_ALL + " AND assignee = '" + user.getName() + "'";
             System.out.println("Running: " + jiraQueryPerUser);
             SearchResult searchResultsPerUser = restClient.getSearchClient().searchJql(jiraQueryPerUser).claim();
-            sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), "probinso@redhat.com");
-            //sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), user.getEmailAddress());
+            //sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), "probinso@redhat.com");
+            sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), user.getEmailAddress());
         }
 
         return 0;
@@ -105,12 +105,15 @@ class run implements Callable<Integer> {
         System.out.println("Sending email for user: " + user.getDisplayName());
 
         String body = "<p>Hi " + user.getDisplayName() + ",</p>" +
-                "<p>You have the following issues assigned to you on the upcoming 2.2.4 Red Hat Build of Quarkus release.</p>" +
+                "<p>You have the following issues assigned to you on the upcoming Elektra.GA (AKA 2.7.x) Red Hat Build of Quarkus release.</p>" +
                 "<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state and other issues should be close to the 'Implemented' state.</p>" +
-                "<p>JIRA Issues that won't have their fix merged into Quarkus upstream (and labelled for backport) by the <B>10th December</B> should be moved to the 'Elektra.GA' or 'Later.GA' Fix Version in JIRA. " +
-                "Please mention Thomas Qvarnström and I, in a comment on the issue, if you think deferring it would cause significant impact. " +
+                //"<p>The time for merging PRs for this release has now passed (except for super-critical security fixes). Therefore, there should not be any JIRA issues in the following states: 'To Do', 'Analysis in Progress', 'Ready for Dev', 'Dev in Progress'.</p>" +
+                //"<p>JIRA Issues that won't have their fix merged into Quarkus upstream (and labelled for backport) by the <B>10th December</B> should be moved to the 'Elektra.GA' or 'Later.GA' Fix Version in JIRA. " +
+                "<p>JIRA Issues that won't have their fix <B>merged</B> into Quarkus upstream by the <B>18th January</B> should be moved to the 'Fireball.GA' or 'Later.GA' Fix Version in JIRA. " +
+                "<p>Please update the issues below. Either: move the issue to the 'Implemented' state if the PR is already merged into the main Quarkus branch; or move the issue to the 'Fireball.GA' or 'Later.GA' Fix Version in JIRA if the fix did not make it in.</p>" +
+                "<p>Please mention Thomas Qvarnström and I, in a comment on the issue, if you think deferring it would cause significant impact or if you are unsure of what release to target.";
                 //"<b>NOTE:</b> Quarkus 2.2.Final is a hardening release, so only bug fixes and other critical stabilization fixes will be accepted. Other changes to well isolated extensions may also be accepted as long as they don't risk the stability of the release.</p>" +
-                "<p><b>So for the following issues can you:</b> check that the status & assignee is correct and also defer any issues to the 'Elektra.GA' or 'Later.GA' release if they can't make the 10th December deadline.</p>";
+                //"<p><b>So for the following issues can you:</b> check that the status & assignee is correct and also defer any issues to the 'Elektra.GA' or 'Later.GA' release if they can't make the 10th December deadline.</p>";
                 //"<p>The following issues are assigned to you and in the 'To Do' state. Please check that the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
 
         body += "<table border='1' style='border-collapse:collapse'>";
@@ -130,8 +133,8 @@ class run implements Callable<Integer> {
         body += "</table>";
 
         body += "<p>The states are documented here: <a href='https://docs.google.com/document/d/1s5pzo73HS9QYF1oQjv8ff-ATAK-u8dU_iL3qTe859xA/edit#heading=h.17kii7ptsosf'>Quarkus Product Process | JIRA Workflow</a>.";
-        body += "<p>To summarise the states from an engineering perspective...";
         body += "</p>";
+        body += "<p>To summarise the states from an engineering perspective...";
         body += "<br><b>To Do:</b> New issues yet to be worked on</br>";
         body += "<br><b>Analysis In Progress:</b> The issue is being discussed/planned/analysed before actual development begins\n";
         body += "<br><b>Dev In Progress:</b> Coding on the issue is in progress (Developer moves the issue here when coding has begun)\n";
