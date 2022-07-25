@@ -52,7 +52,7 @@ class run implements Callable<Integer> {
     private static final String EMAIL_FROM = "probinso@redhat.com";
     private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = Elektra.GA and component in ('team/eng')";
+    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = 2.7-Elektra.GA and component in ('team/eng')";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
