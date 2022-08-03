@@ -52,7 +52,7 @@ class run implements Callable<Integer> {
     private static final String EMAIL_FROM = "probinso@redhat.com";
     private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = QUARKUS AND status in ('To Do', 'Dev In Progress', 'Ready for Dev', 'Analysis in Progress') AND fixVersion = 2.7-Elektra.GA and component in ('team/eng')";
+    private static final String JIRA_QUERY_ALL = "project = Quarkus AND (fixVersion is EMPTY or fixVersion = Later.GA) AND status != Closed AND (labels not in ('upstream-kafka') OR labels is empty) AND assignee is not EMPTY";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
@@ -80,8 +80,8 @@ class run implements Callable<Integer> {
             String jiraQueryPerUser = JIRA_QUERY_ALL + " AND assignee = '" + user.getName() + "'";
             System.out.println("Running: " + jiraQueryPerUser);
             SearchResult searchResultsPerUser = restClient.getSearchClient().searchJql(jiraQueryPerUser).claim();
-            //sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), "probinso@redhat.com");
-            sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), user.getEmailAddress());
+            sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), "probinso@redhat.com");
+            //sendMail(createEmailBody(user, searchResultsPerUser.getIssues()), user.getEmailAddress());
         }
 
         return 0;
@@ -105,13 +105,27 @@ class run implements Callable<Integer> {
         System.out.println("Sending email for user: " + user.getDisplayName());
 
         String body = "<p>Hi " + user.getDisplayName() + ",</p>" +
-                "<p>You have the following issues assigned to you on the upcoming Elektra.GA (AKA 2.7.x) Red Hat Build of Quarkus release.</p>" +
-                "<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state and other issues should be close to the 'Implemented' state.</p>" +
+                /*"<p>You have the following issues assigned to you on an already released Red Hat Build of Quarkus release.</p>" +
+                "<p>The issues are in the 'To Do' or 'Analysis in Progress' states, despite them being marked with 'fix version/s' that is already released.</p>" +
+                "<p>Please review the following issues and: correct the issue status and/or assign to a later release.</p>";*/
+
+                "<p>We're in the process of planning what will be included in the next Red Hat Build of Quarkus feature release (codename: Fireball) and the following feature release (codename: something beginning with 'G').</p>" +
+                "<p>A November release date is currently being targeted for Fireball. This means it will likely be based on a Quarkus upstream release from September or maybe October.</p>" +
+                "<p>You have the following JIRA issues assigned to you that are NOT currently planned for any RHBQ released. Please can you set the fix version based on the following criteria:</p>" +
+                "<ul>" +
+                  "<li><b>2.y-Fireball.GA:</b> Issues that can be fixed upstream around September or October 2022. In the case of issues not requiring an upstream code change, you will have until around November 2022.</li>" +
+                  "<li><b>x.y-G.GA:</b> Issues that can be fixed for the following RHBQ feature release (merge upstream ~February 2023, or ~March for non-upstream impacting issues)</li>" +
+                  "<li><b>Later.GA:</b> Issues that are valid and complete, but can't be fixed in either of the above timeframes</li>" +
+                "</ul>" +
+                "<p>Thanks for your help with this.</p>";
+
+                //"<p>You have the following issues assigned to you on the upcoming Elektra.GA (AKA 2.7.x) Red Hat Build of Quarkus release.</p>" +
+                //"<p>This release is approaching the final stages, so there shouldn't be many issues in the 'To Do' state and other issues should be close to the 'Implemented' state.</p>" +
                 //"<p>The time for merging PRs for this release has now passed (except for super-critical security fixes). Therefore, there should not be any JIRA issues in the following states: 'To Do', 'Analysis in Progress', 'Ready for Dev', 'Dev in Progress'.</p>" +
                 //"<p>JIRA Issues that won't have their fix merged into Quarkus upstream (and labelled for backport) by the <B>10th December</B> should be moved to the 'Elektra.GA' or 'Later.GA' Fix Version in JIRA. " +
-                "<p>JIRA Issues that won't have their fix <B>merged</B> into Quarkus upstream by the <B>18th January</B> should be moved to the 'Fireball.GA' or 'Later.GA' Fix Version in JIRA. " +
-                "<p>Please update the issues below. Either: move the issue to the 'Implemented' state if the PR is already merged into the main Quarkus branch; or move the issue to the 'Fireball.GA' or 'Later.GA' Fix Version in JIRA if the fix did not make it in.</p>" +
-                "<p>Please mention Thomas Qvarnström and I, in a comment on the issue, if you think deferring it would cause significant impact or if you are unsure of what release to target.";
+                //"<p>JIRA Issues that won't have their fix <B>merged</B> into Quarkus upstream by the <B>18th January</B> should be moved to the 'Fireball.GA' or 'Later.GA' Fix Version in JIRA. " +
+                //"<p>Please update the issues below. Either: move the issue to the 'Implemented' state if the PR is already merged into the main Quarkus branch; or move the issue to the 'Fireball.GA' or 'Later.GA' Fix Version in JIRA if the fix did not make it in.</p>" +
+                //"<p>Please mention Thomas Qvarnström and I, in a comment on the issue, if you think deferring it would cause significant impact or if you are unsure of what release to target.";
                 //"<b>NOTE:</b> Quarkus 2.2.Final is a hardening release, so only bug fixes and other critical stabilization fixes will be accepted. Other changes to well isolated extensions may also be accepted as long as they don't risk the stability of the release.</p>" +
                 //"<p><b>So for the following issues can you:</b> check that the status & assignee is correct and also defer any issues to the 'Elektra.GA' or 'Later.GA' release if they can't make the 10th December deadline.</p>";
                 //"<p>The following issues are assigned to you and in the 'To Do' state. Please check that the status is correct and update if needed. Please also check that you are the correct assignee.</p>";
@@ -132,17 +146,18 @@ class run implements Callable<Integer> {
         }
         body += "</table>";
 
-        body += "<p>The states are documented here: <a href='https://docs.google.com/document/d/1s5pzo73HS9QYF1oQjv8ff-ATAK-u8dU_iL3qTe859xA/edit#heading=h.17kii7ptsosf'>Quarkus Product Process | JIRA Workflow</a>.";
+        /*body += "<p>The states are documented here: <a href='https://docs.google.com/document/d/1s5pzo73HS9QYF1oQjv8ff-ATAK-u8dU_iL3qTe859xA/edit#heading=h.17kii7ptsosf'>Quarkus Product Process | JIRA Workflow</a>.";
         body += "</p>";
         body += "<p>To summarise the states from an engineering perspective...";
         body += "<br><b>To Do:</b> New issues yet to be worked on</br>";
         body += "<br><b>Analysis In Progress:</b> The issue is being discussed/planned/analysed before actual development begins\n";
         body += "<br><b>Dev In Progress:</b> Coding on the issue is in progress (Developer moves the issue here when coding has begun)\n";
         body += "<br><b>Implemented:</b> The PR for the code is merged and out of the Developer's hands (Developer moves issue to here when the PR is merged)</br>";
-        body += "<br><b>Resolved:</b> The issue is available in a release (Productization moves issues from implemented to here during release)</br>";
+        body += "<br><b>Resolved:</b> The issue is available in a release (Productization moves issues from implemented to here during release)</br>";*/
+
         body += "</p>";
         body += "<p>Thanks,</p>";
-        body += "<p>Paul (via the JIRA-Nag tool)</p>";
+        body += "<p>Paul (via the <a href='https://github.com/paulrobinson/jira-nag'>JIRA-Nag tool</a>)</p>";
 
         return body;
     }
