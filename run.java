@@ -1,6 +1,6 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //REPOS mavencentral,atlassian=https://packages.atlassian.com/maven/repository/public
-//DEPS info.picocli:picocli:4.2.0, com.atlassian.jira:jira-rest-java-client-app:5.2.2, com.atlassian.jira:jira-rest-java-client-api:5.2.2, com.atlassian.jira:jira-rest-java-client-core:5.2.2, org.json:json:20200518, com.konghq:unirest-java:3.7.04, com.sun.mail:javax.mail:1.6.2
+//DEPS info.picocli:picocli:4.2.0, com.atlassian.jira:jira-rest-java-client-app:5.2.2, org.json:json:20200518, com.sun.mail:javax.mail:1.6.2
 
 import com.atlassian.httpclient.api.Request;
 import com.atlassian.jira.rest.client.api.AuthenticationHandler;
@@ -40,7 +40,7 @@ import java.util.Properties;
         description = "GitHub to Jira issue replicator")
 class run implements Callable<Integer> {
 
-    @CommandLine.Option(names = {"-s", "--jira-server"}, description = "The JIRA server to connect to", required = true)
+    @CommandLine.Option(names = {"-s", "--jira-server"}, description = "The JIRA server to connect to", required = true, defaultValue = "https://issues.redhat.com")
     private String jiraServerURL;
 
     @CommandLine.Option(names = {"-t", "--jira-token"}, description = "The Personal Access Token for authenticating with the JIRA server", required = true)
@@ -52,7 +52,7 @@ class run implements Callable<Integer> {
     private static final String EMAIL_FROM = "probinso@redhat.com";
     private static final String EMAIL_SUBJECT = "Please review these Quarkus JIRA issues";
 
-    private static final String JIRA_QUERY_ALL = "project = Quarkus AND (fixVersion is EMPTY or fixVersion = Later.GA) AND status != Closed AND (labels not in ('upstream-kafka') OR labels is empty) AND assignee is not EMPTY";
+    private static final String JIRA_QUERY_ALL = "project = Quarkus AND fixVersion is EMPTY AND status not in (Closed, Resolved) AND assignee is not EMPTY";
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new run()).execute(args);
@@ -184,7 +184,7 @@ class run implements Callable<Integer> {
 
             // HTML email
             msg.setDataHandler(new DataHandler(new HTMLDataSource(body)));
-
+            msg.setHeader("X-Mailer", "JIRA-Nag");
 
             SMTPTransport t = (SMTPTransport) session.getTransport("smtp");
 
